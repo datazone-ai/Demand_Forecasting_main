@@ -1,64 +1,36 @@
 import streamlit as st
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from datetime import datetime, timedelta
-import joblib
+import plotly.express as px
 
-from train import X_train
-
-# Load the trained Random Forest model
-model = joblib.load('random_forest_model.pkl')
-
-# Function to generate forecasts
-def generate_forecasts(model, feature_data, future_months=3):
-    forecasts = []
-    last_date = feature_data['Date'].max()
-    skus = feature_data['SKU'].unique()
-
-    for sku in skus:
-        sku_data = feature_data[feature_data['SKU'] == sku].copy()
-        for i in range(1, future_months + 1):
-            future_date = last_date + timedelta(days=30 * i)
-            # Create features for the future date
-            future_row = {
-                'SKU': sku,
-                'Date': future_date,
-                'Year': future_date.year,
-                'Month': future_date.month,
-                'WeekOfYear': future_date.isocalendar().week,
-                'Lag1': sku_data['Demand'].iloc[-1],  # Use last known demand as lag
-                'RollingMean3': sku_data['Demand'].tail(3).mean(),  # Use rolling mean
-                'Promotion': 0,  # Assume no promotion by default
-                'Holiday': 0  # Assume no holiday by default
-            }
-            sku_data = pd.concat([sku_data, pd.DataFrame([future_row])], ignore_index=True)
-
-            # Prepare features for prediction
-            X_future = pd.DataFrame([future_row])
-            # Ensure all feature columns are present
-            X_future = X_future[X_train.columns]  # Use columns from training data
-            # Predict demand
-            future_demand = model.predict(X_future)[0]
-            forecasts.append([sku, future_date, future_demand])
-
-    return pd.DataFrame(forecasts, columns=['SKU', 'Date', 'Forecasted_Demand'])
-
+# Load forecast data
+def load_data():
+    file_path = "predictions/multi_month_demand_forecast.csv"
+    return pd.read_csv(file_path)
 # Streamlit App
-st.title('Demand Forecasting for DAWAH GROUP')
+st.set_page_config(page_title="Demand Forecast Dashboard", layout="wide")
+st.title("📊 SKU Demand Forecast & Reorder Recommendations")
 
-# Load feature-engineered data
-feature_data = pd.read_csv('feature_data.csv')
-feature_data['Date'] = pd.to_datetime(feature_data['Date'])
+# Load Data
+df = load_data()
 
-# Generate forecasts
-forecasts = generate_forecasts(model, feature_data, future_months=3)
+# Sidebar Filters
+st.sidebar.header("Filter Options")
+sku_filter = st.sidebar.text_input("Search SKU:")
+reorder_filter = st.sidebar.selectbox("Show Only Reorders:", ["All", True, False])
 
-# Display forecasts in a table
-st.write("### Forecasted Demand for Next 3 Months")
-st.table(forecasts)
+# Apply Filters
+if sku_filter:
+    df = df[df['SKU'].astype(str).str.contains(sku_filter, case=False, na=False)]
+if reorder_filter != "All":
+    df = df[df['Reorder Needed'] == reorder_filter]
 
-# Simulate ERP Integration
-st.write("### Simulate ERP Integration")
-if st.button('Create Purchase Orders'):
-    st.write("Purchase Orders Created Successfully!")
-    st.write(forecasts)
+# Display Data
+st.dataframe(df, use_container_width=True)
+
+# Visualization: Demand Forecast vs Stock Balance
+fig = px.line(df, x='Order Month', y=['Predicted Demand', 'Stock Balance'], color='SKU',
+              title='Predicted Demand vs Stock Balance', markers=True)
+st.plotly_chart(fig, use_container_width=True)
+
+# Download Button
+st.sidebar.download_button("Download Forecast CSV", df.to_csv(index=False), "forecast_data.csv", "text/csv")

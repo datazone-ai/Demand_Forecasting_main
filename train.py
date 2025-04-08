@@ -1,37 +1,45 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error
+import os
 import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-def train_model(input_file, model_file):
-    df = pd.read_csv(input_file)
+
+def train_model(input_path, model_output_path):
+    # Load preprocessed data
+    df = pd.read_csv(input_path)
     
-    # Prepare data
-    X = df.drop('Demand_Forecast', axis=1)
-    y = df['Demand_Forecast']
+    # Define features and target variable
+    X = df.drop(columns=['Demand Forecast'])  # Features
+    y = df['Demand Forecast']  # Target
     
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42)
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Train model
-    model = RandomForestRegressor(
-        n_estimators=200,
-        max_depth=10,
-        min_samples_split=5,
-        random_state=42
-    )
+    # Train Random Forest model
+    model = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
     model.fit(X_train, y_train)
     
-    # Evaluate
+    # Predictions
     y_pred = model.predict(X_test)
-    mae = mean_absolute_error(y_test, y_pred)
-    print(f"Model MAE: {mae:.2f}")
     
-    # Save model
-    joblib.dump(model, model_file)
-    print(f"Model saved to {model_file}")
+    # Evaluate model
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = mse ** 0.5  # Manually computing RMSE
 
+    print(f'Model Evaluation:\nMAE: {mae}\nMSE: {mse}\nRMSE: {rmse}')
+    
+    # Ensure the output directory exists
+    os.makedirs(os.path.dirname(model_output_path), exist_ok=True)
+    
+    # Save the trained model
+    joblib.dump(model, model_output_path)
+    print(f"Model training complete. Model saved to {model_output_path}")
+
+
+# Run training
 if __name__ == "__main__":
-    train_model('processed_data.csv', 'demand_forecast_model.pkl')
+    train_model("processed_data/medicine_inventory_cleaned.csv", "models/demand_forecasting_rf.pkl")
+
