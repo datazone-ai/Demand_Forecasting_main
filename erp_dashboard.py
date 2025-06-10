@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 # Configure page
 st.set_page_config(
-    page_title="PharmaDemand ERP Integration",
+    page_title="TGI_Group ERP Integration",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -107,9 +107,9 @@ def generate_predictions(model, data, months_ahead=2):
 
 # Main app
 def main():
-    st.title("🏥 PharmaDemand ERP Integration Dashboard")
+    st.title("ForeSight.AI")
     st.markdown("""
-    **AI-powered demand forecasting solution** for pharmaceutical inventory optimization
+    **AI-powered demand forecasting solution** for inventory optimization
     """)
     
     # Load data and model
